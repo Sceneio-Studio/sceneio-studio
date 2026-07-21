@@ -46,8 +46,8 @@ function hydrateSavedProjects() {
 function renderProjects(filter = activeFilter) {
   activeFilter = filter;
   const projects = content.projects.filter((project) => filter === "all" || project.type === filter);
-  projectGrid.innerHTML = projects.length ? projects.map((project) => `
-    <article class="project-card reveal" data-project="${content.projects.indexOf(project)}" tabindex="0" role="button" aria-label="View ${escapeHTML(project.title)}">
+  projectGrid.innerHTML = projects.length ? projects.map((project, index) => `
+    <article class="project-card reveal" style="--reveal-delay:${Math.min(index * 90, 360)}ms" data-project="${content.projects.indexOf(project)}" tabindex="0" role="button" aria-label="View ${escapeHTML(project.title)}">
       <div class="project-visual"><img src="${escapeHTML(project.image)}" alt="${escapeHTML(project.title)}" loading="lazy" />${project.isPublished ? '<span class="project-live">Live update</span>' : ""}</div>
       <div class="project-info">
         <h3 class="project-title">${escapeHTML(project.title)}</h3>
@@ -100,6 +100,21 @@ function bindProjectCards() {
     card.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") { event.preventDefault(); open(); }
     });
+    if (!reducedMotion) {
+      card.addEventListener("pointermove", (event) => {
+        const visual = card.querySelector(".project-visual");
+        const bounds = visual.getBoundingClientRect();
+        const x = (event.clientX - bounds.left) / bounds.width - .5;
+        const y = (event.clientY - bounds.top) / bounds.height - .5;
+        visual.style.setProperty("--tilt-x", `${y * -5}deg`);
+        visual.style.setProperty("--tilt-y", `${x * 5}deg`);
+      });
+      card.addEventListener("pointerleave", () => {
+        const visual = card.querySelector(".project-visual");
+        visual.style.setProperty("--tilt-x", "0deg");
+        visual.style.setProperty("--tilt-y", "0deg");
+      });
+    }
   });
 }
 
@@ -172,6 +187,39 @@ function observeReveals() {
   }, { threshold: .08 });
   document.querySelectorAll(".reveal:not(.visible)").forEach((element) => observer.observe(element));
 }
+
+const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const scrollProgress = document.querySelector(".scroll-progress span");
+const hero = document.querySelector(".hero");
+const heroImage = document.querySelector(".hero-image");
+const heroContent = document.querySelector(".hero-content");
+const heroOverlay = document.querySelector(".hero-overlay");
+let scrollFrame = null;
+
+function updateScrollMotion() {
+  scrollFrame = null;
+  const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+  const progress = scrollable > 0 ? window.scrollY / scrollable : 0;
+  scrollProgress.style.transform = `scaleX(${progress})`;
+  if (reducedMotion) return;
+  const heroProgress = Math.min(window.scrollY / Math.max(hero.offsetHeight, 1), 1);
+  heroImage.style.transform = `scale(${1.04 + heroProgress * .1}) translate3d(0, ${heroProgress * 5}%, 0)`;
+  heroContent.style.transform = `translate3d(0, ${heroProgress * 12}%, 0)`;
+  heroOverlay.style.opacity = String(1 - heroProgress * .14);
+  document.querySelectorAll(".project-card").forEach((card) => {
+    const bounds = card.getBoundingClientRect();
+    const distance = (bounds.top + bounds.height / 2 - window.innerHeight / 2) / window.innerHeight;
+    card.style.setProperty("--lift", `${Math.max(-10, Math.min(10, distance * -8))}px`);
+  });
+}
+
+function requestScrollMotion() {
+  if (!scrollFrame) scrollFrame = window.requestAnimationFrame(updateScrollMotion);
+}
+
+window.addEventListener("scroll", requestScrollMotion, { passive: true });
+window.addEventListener("resize", requestScrollMotion);
+requestScrollMotion();
 
 const cursor = document.querySelector(".cursor");
 const cursorLabel = document.querySelector(".cursor-label");
