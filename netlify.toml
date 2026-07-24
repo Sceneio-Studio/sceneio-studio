@@ -1,5 +1,22 @@
 [build]
+  command = "node scripts/generate-config.js"
   publish = "."
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/dashboard"
+  to = "/dashboard.html"
+  status = 200
+
+[[redirects]]
+  from = "/api/mux-upload-url"
+  to = "/.netlify/functions/mux-upload-url"
+  status = 200
+
+[[redirects]]
+  from = "/api/mux-status"
+  to = "/.netlify/functions/mux-status"
+  status = 200
 
 [[headers]]
   for = "/*"

@@ -4,22 +4,32 @@ The site is a cinematic static portfolio and publishing journal for SCENEIO STUD
 
 ## Publish a new project
 
-Open the website and choose **Publish update**. Enter:
+Open `/dashboard`, sign in with a Supabase email/password account, and upload:
 
-- Project title
-- YouTube video link
+- Video file
+- Title
 - Caption
-- Project type
-- Optional custom cover-image link
+- Category: `Final Ad`, `BTS`, `Short Film`, or `Other`
+- Optional cover-image URL
 
-Press **Publish to website**. The project is added to the work reel, and its YouTube video plays inside its project page.
+The browser sends the video directly to Mux. Netlify Functions create the upload securely, save the project metadata in Supabase, wait for Mux playback processing, and publish the project when its playback ID is ready.
 
-The `api/` folder contains inactive future publishing endpoints. Nothing in the static front end calls them yet, so Netlify will serve the site without CMS or serverless integration.
+The old `api/` folder is kept inactive for reference. The live integration uses `netlify/functions/`.
 
 ## Netlify
 
-`netlify.toml` sets the project root as the publish directory. Connect the GitHub repository to Netlify and enable automatic deploys from the main branch.
+`netlify.toml` sets the project root as the publish directory, routes `/dashboard`, and enables the Mux functions. Connect the GitHub repository to Netlify and enable automatic deploys from the main branch.
+
+## One-time setup
+
+1. Create a Supabase project and run `supabase/schema.sql` in the SQL editor.
+2. Enable Email provider authentication and create the studio user.
+3. Add `SUPABASE_URL` and `SUPABASE_ANON_KEY` to the Netlify environment. Netlify generates the public `config.js` during each build.
+4. Add `SUPABASE_SERVICE_ROLE_KEY`, `MUX_TOKEN_ID`, and `MUX_TOKEN_SECRET` to Netlify. Keep the service-role and Mux values server-only.
+5. Give the Mux token permission to create direct uploads and read assets.
+
+For local preview, put the same public Supabase values in `config.js`; never put the service-role or Mux values there.
 
 ## Editing default work
 
-`content.js` holds the initial portfolio and journal entries. Supported filters are `film`, `commercial`, and `brand`.
+`content.js` holds the initial portfolio and journal entries used when Supabase is not configured. The public reel reads published projects from Supabase when configured.

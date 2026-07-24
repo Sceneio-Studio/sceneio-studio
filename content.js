@@ -2,8 +2,8 @@ window.siteContent = {
   projects: [
     {
       title: "The quiet before",
-      type: "film",
-      category: "Original film",
+      type: "Final Ad",
+      category: "Final Ad",
       year: "2026",
       client: "An independent story",
       services: "Direction / Production / Edit",
@@ -12,8 +12,8 @@ window.siteContent = {
     },
     {
       title: "Made of more",
-      type: "commercial",
-      category: "Brand commercial",
+      type: "BTS",
+      category: "BTS",
       year: "2026",
       client: "A new kind of everyday",
       services: "Concept / Shoot / Post",
@@ -22,8 +22,8 @@ window.siteContent = {
     },
     {
       title: "Keep moving",
-      type: "brand",
-      category: "Brand world",
+      type: "Short Film",
+      category: "Short Film",
       year: "2025",
       client: "A culture in motion",
       services: "Strategy / Identity / Film",
@@ -32,8 +32,8 @@ window.siteContent = {
     },
     {
       title: "After the last light",
-      type: "film",
-      category: "Documentary short",
+      type: "Other",
+      category: "Other",
       year: "2025",
       client: "Field notes 04",
       services: "Story / Camera / Sound",
