@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="SCENEIO STUDIO private upload desk." />
+    <title>Studio console — SCENEIO STUDIO</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,500;0,600;1,500;1,600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="dashboard-page">
+    <div class="noise" aria-hidden="true"></div>
+    <header class="site-header dashboard-header">
+      <a class="brand-lockup magnetic" href="/" aria-label="SCENEIO STUDIO home">
+        <img src="sceneio-logo.png" alt="Shridevi Education" />
+        <span class="wordmark">sceneio<span>/</span>studio</span>
+      </a>
+      <a class="nav-link magnetic" href="/">Back to the reel <span>↗</span></a>
+    </header>
+
+    <main class="dashboard-main">
+      <section class="dashboard-intro reveal visible">
+        <p class="eyebrow"><span class="status-dot"></span> Private studio console</p>
+        <h1>Put the<br /><em>work</em> out.</h1>
+        <p>Send a finished film straight to the SCENEIO reel. Mux handles the video, Supabase keeps the story, and the public site updates when the upload is ready.</p>
+      </section>
+
+      <section class="dashboard-panel" aria-live="polite">
+        <div class="auth-view" id="auth-view">
+          <p class="section-label"><span>01</span><span>Studio access</span></p>
+          <h2>Sign in<br /><em>to publish.</em></h2>
+          <form class="dashboard-form" id="login-form">
+            <label>Email<input name="email" type="email" autocomplete="email" placeholder="you@sceneio.studio" required /></label>
+            <label>Password<input name="password" type="password" autocomplete="current-password" placeholder="Your studio password" required /></label>
+            <button class="publish-button magnetic" type="submit">Enter the console <span>↗</span></button>
+            <p class="publish-status" id="login-status" role="status"></p>
+          </form>
+        </div>
+
+        <div class="upload-view hidden" id="upload-view">
+          <div class="dashboard-panel-head">
+            <div>
+              <p class="section-label"><span>02</span><span>New project</span></p>
+              <h2>Make it<br /><em>live.</em></h2>
+            </div>
+            <button class="text-button magnetic" id="logout-button" type="button">Sign out ↗</button>
+          </div>
+          <form class="dashboard-form" id="upload-form">
+            <label>Video file<input name="video" type="file" accept="video/*" required /></label>
+            <label>Title<input name="title" type="text" placeholder="e.g. The night we made it move" required /></label>
+            <label>Caption<textarea name="caption" rows="5" placeholder="What happened behind this frame?" required></textarea></label>
+            <div class="form-row">
+              <label>Category<select name="category" required>
+                <option value="Final Ad">Final Ad</option>
+                <option value="BTS">BTS (Behind the Scenes)</option>
+                <option value="Short Film">Short Film</option>
+                <option value="Other">Other</option>
+              </select></label>
+              <label>Cover image URL <span>(optional)</span><input name="coverImageUrl" type="url" placeholder="https://..." /></label>
+            </div>
+            <button class="publish-button magnetic" type="submit" id="upload-button">Upload to the reel <span>↗</span></button>
+            <div class="upload-progress hidden" id="upload-progress"><span></span></div>
+            <p class="publish-status" id="dashboard-status" role="status"></p>
+            <p class="form-note">Your video uploads directly to Mux. It appears publicly after Mux finishes processing the playback version.</p>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <script src="dashboard.js"></script>
+  </body>
+</html>

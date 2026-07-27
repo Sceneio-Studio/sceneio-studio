@@ -1,10 +1,7 @@
 const content = window.siteContent;
-const storageKey = "sceneio-published-projects";
 const projectGrid = document.querySelector("#project-grid");
 const journalList = document.querySelector("#journal-list");
 const modal = document.querySelector(".project-modal");
-const publishForm = document.querySelector("#publish-form");
-const publishStatus = document.querySelector("#publish-status");
 let activeFilter = "all";
 
 function escapeHTML(value = "") {
@@ -13,50 +10,69 @@ function escapeHTML(value = "") {
   })[character]);
 }
 
-function getYouTubeId(value) {
-  try {
-    const url = new URL(value);
-    if (url.hostname.includes("youtu.be")) return url.pathname.slice(1).split("/")[0];
-    if (url.hostname.includes("youtube.com")) return url.searchParams.get("v") || url.pathname.split("/").pop();
-  } catch (error) {
-    return null;
-  }
-  return null;
+function getSupabaseClient() {
+  const config = window.SCENEIO_CONFIG || {};
+  if (!window.supabase || !config.supabaseUrl || !config.supabaseAnonKey) return null;
+  return window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
 }
 
-function getSavedProjects() {
-  try {
-    const saved = JSON.parse(window.localStorage.getItem(storageKey) || "[]");
-    return Array.isArray(saved) ? saved : [];
-  } catch (error) {
-    return [];
-  }
+function normalizeProject(row) {
+  const playbackId = row.mux_playback_id || row.muxPlaybackId || "";
+  const coverImage = row.cover_image_url || row.coverImageUrl || (playbackId ? `https://image.mux.com/${encodeURIComponent(playbackId)}/thumbnail.jpg?width=1400&time=1` : "");
+  const category = row.category || "Other";
+  return {
+    title: row.title || "Untitled project",
+    type: category,
+    category,
+    year: row.created_at ? new Date(row.created_at).getFullYear().toString() : (row.year || new Date().getFullYear().toString()),
+    client: row.client || "SCENEIO STUDIO",
+    services: row.services || "Concept / Production / Edit",
+    description: row.caption || row.description || "A new piece from the SCENEIO STUDIO field journal.",
+    image: coverImage,
+    muxPlaybackId: playbackId,
+    videoId: row.video_id || row.videoId || "",
+    isPublished: row.published !== false,
+    createdAt: row.created_at || ""
+  };
 }
 
-function savePublishedProjects() {
-  const savedProjects = content.projects.filter((project) => project.isPublished).slice(0, 30);
-  window.localStorage.setItem(storageKey, JSON.stringify(savedProjects));
-}
-
-function hydrateSavedProjects() {
-  const savedProjects = getSavedProjects();
-  content.projects = [...savedProjects, ...content.projects.filter((project) => !project.isPublished)];
+async function loadProjects() {
+  const client = getSupabaseClient();
+  if (!client) return;
+  const { data, error } = await client
+    .from("projects")
+    .select("title,caption,category,mux_playback_id,cover_image_url,published,created_at")
+    .eq("published", true)
+    .not("mux_playback_id", "is", null)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  content.projects = (data || []).map(normalizeProject);
+  renderProjects();
 }
 
 function renderProjects(filter = activeFilter) {
   activeFilter = filter;
-  const projects = content.projects.filter((project) => filter === "all" || project.type === filter);
-  projectGrid.innerHTML = projects.length ? projects.map((project, index) => `
-    <article class="project-card reveal" style="--reveal-delay:${Math.min(index * 90, 360)}ms" data-project="${content.projects.indexOf(project)}" tabindex="0" role="button" aria-label="View ${escapeHTML(project.title)}">
-      <div class="project-visual"><img src="${escapeHTML(project.image)}" alt="${escapeHTML(project.title)}" loading="lazy" />${project.isPublished ? '<span class="project-live">Live update</span>' : ""}</div>
-      <div class="project-info">
-        <h3 class="project-title">${escapeHTML(project.title)}</h3>
-        <div class="project-meta">${escapeHTML(project.category)}<br />${escapeHTML(project.year)}</div>
-      </div>
-    </article>
-  `).join("") : '<p class="empty-projects">No work in this cut yet.</p>';
+  const projects = content.projects.filter((project) => filter === "all" || project.category === filter);
+  projectGrid.innerHTML = projects.length ? projects.map((project, index) => {
+    const projectIndex = content.projects.indexOf(project);
+    const media = project.muxPlaybackId
+      ? `<mux-player class="project-preview" playback-id="${escapeHTML(project.muxPlaybackId)}" ${project.image ? `poster="${escapeHTML(project.image)}"` : ""} muted playsinline preload="metadata" aria-label="Preview of ${escapeHTML(project.title)}"></mux-player>`
+      : project.videoId
+        ? `<img src="${escapeHTML(project.image)}" alt="${escapeHTML(project.title)}" loading="lazy" />`
+        : `<img src="${escapeHTML(project.image)}" alt="${escapeHTML(project.title)}" loading="lazy" />`;
+    return `
+      <article class="project-card reveal" style="--reveal-delay:${Math.min(index * 90, 360)}ms" data-project="${projectIndex}" tabindex="0" role="button" aria-label="View ${escapeHTML(project.title)}">
+        <div class="project-visual">${media}${project.isPublished ? '<span class="project-live">Live update</span>' : ""}</div>
+        <div class="project-info">
+          <h3 class="project-title">${escapeHTML(project.title)}</h3>
+          <div class="project-meta">${escapeHTML(project.category)}<br />${escapeHTML(project.year)}</div>
+        </div>
+      </article>
+    `;
+  }).join("") : '<p class="empty-projects">No work in this cut yet.</p>';
   bindProjectCards();
   observeReveals();
+  requestScrollMotion();
 }
 
 function renderJournal() {
@@ -76,7 +92,9 @@ function openProject(project) {
   document.querySelector("#modal-client").textContent = project.client;
   document.querySelector("#modal-services").textContent = project.services;
   const modalMedia = document.querySelector("#modal-media");
-  if (project.videoId) {
+  if (project.muxPlaybackId) {
+    modalMedia.innerHTML = `<mux-player class="modal-player" playback-id="${escapeHTML(project.muxPlaybackId)}" ${project.image ? `poster="${escapeHTML(project.image)}"` : ""} autoplay controls playsinline></mux-player>`;
+  } else if (project.videoId) {
     modalMedia.innerHTML = `<iframe src="https://www.youtube.com/embed/${encodeURIComponent(project.videoId)}" title="${escapeHTML(project.title)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`;
   } else {
     modalMedia.innerHTML = `<div class="modal-image" style="background-image:url('${escapeHTML(project.image)}')"></div>`;
@@ -95,10 +113,18 @@ function closeProject() {
 
 function bindProjectCards() {
   document.querySelectorAll(".project-card").forEach((card) => {
-    const open = () => openProject(content.projects[Number(card.dataset.project)]);
+    const project = content.projects[Number(card.dataset.project)];
+    const preview = card.querySelector(".project-preview");
+    const open = () => openProject(project);
     card.addEventListener("click", open);
     card.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") { event.preventDefault(); open(); }
+    });
+    card.addEventListener("pointerenter", () => {
+      if (preview && typeof preview.play === "function") preview.play().catch(() => {});
+    });
+    card.addEventListener("pointerleave", () => {
+      if (preview && typeof preview.pause === "function") preview.pause();
     });
     if (!reducedMotion) {
       card.addEventListener("pointermove", (event) => {
@@ -120,46 +146,10 @@ function bindProjectCards() {
 
 document.querySelectorAll(".filter-button").forEach((button) => {
   button.addEventListener("click", () => {
-    document.querySelector(".filter-button.active").classList.remove("active");
+    document.querySelector(".filter-button.active")?.classList.remove("active");
     button.classList.add("active");
     renderProjects(button.dataset.filter);
   });
-});
-
-publishForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const formData = new FormData(publishForm);
-  const title = String(formData.get("title") || "").trim();
-  const videoUrl = String(formData.get("video-url") || "").trim();
-  const caption = String(formData.get("caption") || "").trim();
-  const videoId = getYouTubeId(videoUrl);
-  if (!videoId) {
-    publishStatus.textContent = "Please paste a valid YouTube link.";
-    publishStatus.className = "publish-status error";
-    return;
-  }
-  const type = String(formData.get("type"));
-  const categoryMap = { film: "Original film", commercial: "Brand commercial", brand: "Brand world" };
-  const coverImage = String(formData.get("image-url") || "").trim() || `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
-  const project = {
-    title,
-    type,
-    category: categoryMap[type],
-    year: String(new Date().getFullYear()),
-    client: "SCENEIO STUDIO",
-    services: "Concept / Production / Edit",
-    description: caption,
-    image: coverImage,
-    videoId,
-    isPublished: true
-  };
-  content.projects.unshift(project);
-  savePublishedProjects();
-  renderProjects(activeFilter);
-  publishForm.reset();
-  publishStatus.textContent = "Published in this browser. Your new project is now in the work reel.";
-  publishStatus.className = "publish-status success";
-  document.querySelector("#work").scrollIntoView({ behavior: "smooth" });
 });
 
 document.querySelector(".modal-close").addEventListener("click", closeProject);
@@ -179,13 +169,15 @@ document.querySelectorAll(".mobile-menu a").forEach((link) => link.addEventListe
   mobileMenu.setAttribute("aria-hidden", "true");
 }));
 
+let revealObserver;
 function observeReveals() {
-  const observer = new IntersectionObserver((entries, currentObserver) => {
+  revealObserver?.disconnect();
+  revealObserver = new IntersectionObserver((entries, currentObserver) => {
     entries.forEach((entry) => {
       if (entry.isIntersecting) { entry.target.classList.add("visible"); currentObserver.unobserve(entry.target); }
     });
   }, { threshold: .08 });
-  document.querySelectorAll(".reveal:not(.visible)").forEach((element) => observer.observe(element));
+  document.querySelectorAll(".reveal:not(.visible)").forEach((element) => revealObserver.observe(element));
 }
 
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -219,7 +211,6 @@ function requestScrollMotion() {
 
 window.addEventListener("scroll", requestScrollMotion, { passive: true });
 window.addEventListener("resize", requestScrollMotion);
-requestScrollMotion();
 
 const cursor = document.querySelector(".cursor");
 const cursorLabel = document.querySelector(".cursor-label");
@@ -259,7 +250,8 @@ document.querySelectorAll(".magnetic").forEach((element) => {
   element.addEventListener("mouseleave", () => { element.style.transform = "translate(0, 0)"; });
 });
 
-hydrateSavedProjects();
 renderProjects();
 renderJournal();
 observeReveals();
+requestScrollMotion();
+loadProjects().catch((error) => console.warn("SCENEIO cloud projects unavailable; showing studio reel.", error));
